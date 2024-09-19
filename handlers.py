@@ -14,23 +14,32 @@ router = Router()
 
 @router.message(Command('start'))
 async def start_handler(msg: Message, state: FSMContext):
-    await msg.answer('Введите сумму банковской гарантии в рублях.\n'
-                 'Поле должно содержать только цифры, без пробелов.')
+    await msg.answer('Вас приветствует бот команды БанкГарант24\n'
+                     '\n'
+                     'Введите Ваше имя')
     await state.set_state(Form.amount)
 
 
 @router.message(Form.amount)
 async def amount_handler(msg: Message, state: FSMContext):
+    await state.update_data(name=msg.text)
+    await msg.answer('Введите сумму банковской гарантии в рублях.\n'
+                 'Поле должно содержать только цифры, без пробелов.')
+    await state.set_state(Form.term)
+
+
+@router.message(Form.term)
+async def term_handler(msg: Message, state: FSMContext):
     if not msg.text.isdigit():
         await msg.answer('Поле должно содержать только цифры. Повторите ввод')
         return
     else:
         await state.update_data(amount=msg.text)
         await msg.answer('Введите срок банковской гарантии (в месяцах)')
-        await state.set_state(Form.term)
+        await state.set_state(Form.contract_type)
 
 
-@router.message(Form.term)
+@router.message(Form.contract_type)
 async def check_contract_type(msg: Message, state: FSMContext):
     if not msg.text.isdigit():
         await msg.answer('Поле должно содержать только цифры. Повторите ввод')
@@ -65,11 +74,11 @@ async def contract_type_callback(callback_query: CallbackQuery, state: FSMContex
     elif callback_query.data == 'Другое':
         await callback_query.message.answer('Вы выбрали: Другое')
 
-    await state.set_state(Form.contract_type)
+    await state.set_state(Form.participation_type)
     await check_participation_type(callback_query.message, state)
 
 
-@router.message(Form.contract_type)
+@router.message(Form.participation_type)
 async def check_participation_type(msg: Message, state: FSMContext):
     keyboard_builder = InlineKeyboardBuilder()
     keyboard_builder.row(
@@ -94,11 +103,11 @@ async def participation_type_callback(callback_query: CallbackQuery, state: FSMC
     elif callback_query.data == 'Другое ':
         await callback_query.message.answer('Вы выбрали: Другое')
 
-    await state.set_state(Form.participation_type)
+    await state.set_state(Form.advance)
     await check_advanced_payment(callback_query.message, state)
 
 
-@router.message(Form.participation_type)
+@router.message(Form.advance)
 async def check_advanced_payment(msg: Message, state: FSMContext):
     keyboard_builder = InlineKeyboardBuilder()
     keyboard_builder.row(
@@ -119,11 +128,11 @@ async def advanced_payment_callback(callback_query: CallbackQuery, state: FSMCon
     elif callback_query.data == 'Аванс есть':
         await callback_query.message.answer('Вы выбрали: Аванс есть')
 
-    await state.set_state(Form.advance)
+    await state.set_state(Form.dept)
     await check_overdue_debt(callback_query.message, state)
 
 
-@router.message(Form.advance)
+@router.message(Form.dept)
 async def check_overdue_debt(msg: Message, state: FSMContext):
     keyboard_builder = InlineKeyboardBuilder()
     keyboard_builder.row(
@@ -177,20 +186,12 @@ async def add_comment(msg: Message, state: FSMContext):
     await msg.answer('Если у Вас есть дополнительные комментарии, можете написать здесь.\n'
                      'Либо отправить любой символ для перехода к следующему пункту.')
 
-    await state.set_state(Form.name)
-
-
-@router.message(Form.name)
-async def add_name(msg: Message, state: FSMContext):
-    await state.update_data(comment=msg.text)
-    await msg.answer('Введите Ваше имя')
-
     await state.set_state(Form.request_phone)
 
 
 @router.message(Form.request_phone)
 async def add_phone(msg: Message, state: FSMContext):
-    await state.update_data(name=msg.text)
+    await state.update_data(comment=msg.text)
 
     phone_button = InlineKeyboardButton(text="Отправить номер телефона", callback_data="request_phone")
     phone_markup = InlineKeyboardMarkup(inline_keyboard=[[phone_button]])
@@ -239,6 +240,7 @@ async def last_handler(msg: Message, state: FSMContext):
                 )
 
         text_for_amo = (
+            f"Имя: {data['name']}\n"
             f"Сумма банковской гарантии: {data['amount']} руб.\n"
             f"Срок банковской гарантии: {data['term']} мес.\n"
             f"Тип контракта: {data['contract_type']}\n"
@@ -247,7 +249,6 @@ async def last_handler(msg: Message, state: FSMContext):
             f"Задолженность: {data['overdue_debt']}\n"
             f"Срочность: {data['urgency']}\n"
             f"Комментарий: {data['comment']}\n"
-            f"Имя: {data['name']}\n"
             f"Номер телефона: {contact}\n"
         )
 
