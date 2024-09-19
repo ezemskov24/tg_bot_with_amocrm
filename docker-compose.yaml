@@ -1,0 +1,9 @@
+services:
+  bot:
+    container_name: bg24_bot_container
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    env_file:
+      - .env
